@@ -26,10 +26,10 @@ void loop()
   distance = duration * 17 / 1000; 
   //PC모니터로 초음파 거리값을 확인 하는 코드 입니다.
 
-  Serial.println(duration ); //초음파가 반사되어 돌아오는 시간을 보여줍니다.
-  Serial.print("\nDistance : ");
+  //Serial.println(duration ); //초음파가 반사되어 돌아오는 시간을 보여줍니다.
+  //Serial.print("\nDistance : ");
   Serial.print(distance); //측정된 물체로부터 거리값(cm값)을 보여줍니다.
-  Serial.println(" Cm");
+  //Serial.println(" Cm");
 
   delay(1000); //1초마다 측정값을 보여줍니다.
 }
