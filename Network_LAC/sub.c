@@ -2,9 +2,10 @@
 #include <stdlib.h>
 
 #include <mosquitto.h>
+#include "main.h"
 
 void on_connect(struct mosquitto *mosq, void *obj, int rc) {
-	printf("ID: %d\n", * (int *) obj);
+	printf("LED: %d\n", * (int *) obj);
 	if(rc) {
 		printf("Error with result code: %d\n", rc);
 		exit(-1);
@@ -13,20 +14,21 @@ void on_connect(struct mosquitto *mosq, void *obj, int rc) {
 }
 
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg) {
-	printf("%s", (char *) msg->payload);
+	printf("New message with topic %s: %s\n", msg->topic, (char *) msg->payload);
 }
 
 int main() {
 	int rc, id=12;
+
 	mosquitto_lib_init();
 
 	struct mosquitto *mosq;
 
-	mosq = mosquitto_new("subscribe-test", true, &id); //mosquitto 구조체 생성
+	mosq = mosquitto_new("subscribe-test", true, &id);
 	mosquitto_connect_callback_set(mosq, on_connect);
 	mosquitto_message_callback_set(mosq, on_message);
 	
-	rc = mosquitto_connect(mosq, "127.0.0.1", 1883, 10); // 브로커와 연결
+	rc = mosquitto_connect(mosq, "192.168.0.51", 1883, 10);
 	if(rc) {
 		printf("Could not connect to Broker with return code %d\n", rc);
 		return -1;
