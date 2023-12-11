@@ -5,17 +5,17 @@
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
-#define WLAN_SSID       "class924"
-#define WLAN_PASS       "kosta90009"
-#define MQTT_SERVER     "192.168.0.51"
-#define MQTT_PORT       1883
-#define MQTT_USERNAME   "your_mqtt_username"
-#define MQTT_KEY        "your_mqtt_password"
+#define WLAN_SSID "class924"
+#define WLAN_PASS "kosta90009"
+#define MQTT_SERVER "192.168.0.51"
+#define MQTT_PORT 1883
+#define MQTT_USERNAME "your_mqtt_username"
+#define MQTT_KEY "your_mqtt_password"
 
 
-#define LCD_ADDRESS     0x27
-#define LCD_COLUMNS     16
-#define LCD_ROWS        2
+#define LCD_ADDRESS 0x27
+#define LCD_COLUMNS 16
+#define LCD_ROWS 2
 // 16x2 LCD객체를 생성합니다. 이때 확인한 I2C의 주소값을 넣어줍니다.
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -30,15 +30,17 @@ void setup() {
   connectWiFi();
 
   mqtt.setServer(MQTT_SERVER, MQTT_PORT);
-  delay(5000);
-  mqtt.setCallback(callback);  
   connectMQTT();
-
-  lcd.begin(LCD_COLUMNS, LCD_ROWS);
+  delay(2000);
+  mqtt.setCallback(callback);
+  //Display 초기화
+  // lcd.begin(LCD_COLUMNS, LCD_ROWS);
+      lcd.init();
+    lcd.backlight();
 }
 
 void loop() {
- 
+
   if (!mqtt.connected()) {
     connectMQTT();
   }
@@ -66,7 +68,7 @@ void connectMQTT() {
   while (!mqtt.connected()) {
     if (mqtt.connect("LCDClient")) {
       Serial.println("Connected to MQTT");
-  
+
       mqtt.subscribe("sensor/mq135");
     } else {
       Serial.print("Failed to connect to MQTT, rc=");
@@ -78,13 +80,17 @@ void connectMQTT() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
- 
+
   String message;
   for (int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
+  // 출력 확인
   Serial.print(message);
-
+  
+  lcd.setCursor(0, 0);
+  lcd.print("Distance: ");
+  lcd.print(message);
+  delay(2000);
   lcd.clear();
-  lcd.print("hihi");
 }
