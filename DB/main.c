@@ -38,7 +38,8 @@ int on_message(void *context, char *topicName, int topicLen, MQTTClient_message 
 {
     printf("Message arrived\n");
     printf("     topic: %s\n", topicName);
-    printf("   message: ");
+    printf("     message: ");
+    printf("%s", message->payload);
 
     // char *payloadptr = message->payload; 
     // payloadptr[message->payloadlen] = '\0';
