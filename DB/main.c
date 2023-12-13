@@ -34,20 +34,23 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName)
     return 0;
 }
 
-int  on_message(void *context, char *topicName, int topicLen, MQTTClient_message *message)
+int on_message(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
+    printf("Message arrived\n");
+    printf("     topic: %s\n", topicName);
+    printf("   message: ");
 
-    char *payload = message->payload;
-    payload[message->payloadlen] = '\0';
+    // char *payloadptr = message->payload; 
+    // payloadptr[message->payloadlen] = '\0';
 
     char insertSql[200];
-    time_t timestamp = time(NULL);
-    snprintf(insertSql, sizeof(insertSql), "INSERT INTO sensors_data (topic, payload) VALUES ('%s', '%s');", topicName, payload);
+    // message->payload : payloadptr
+    snprintf(insertSql, sizeof(insertSql), "INSERT INTO sensors_data (topic, sensor_data) VALUES ('%s', '%s');", topicName, message->payload);
 
     char *zErrMsg = 0;
 
     pthread_mutex_lock(&mutex);
-    // SQL 명령을 실행 
+    // SQL 명령을 실행
     // (open 한 DB, SQL 문장, 콜백함수 이름, 콜백함수 첫 번째 인자, ERROR 변수)
     int sql_rc = sqlite3_exec(db, insertSql, callback, 0, &zErrMsg);
     pthread_mutex_unlock(&mutex);
@@ -60,13 +63,15 @@ int  on_message(void *context, char *topicName, int topicLen, MQTTClient_message
     }
     else
     {
+        putchar('\n');
         fprintf(stdout, "Record inserted successfully\n");
     }
-
+    
     // 메시지 페이로드에 할당된 추가 메모리를 포함하여 MQTT 메시지에 할당된 메모리를 해제
     MQTTClient_freeMessage(&message);
     //  MQTT C 클라이언트 라이브러리에서 할당한 메모리, 특히 topic 이름을 해제
     MQTTClient_free(topicName);
+    return 1;
 }
 
 int main()
@@ -93,7 +98,7 @@ int main()
     char *sql = "CREATE TABLE IF NOT EXISTS sensors_data("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 "topic TEXT NOT NULL,"
-                "payload TEXT NOT NULL,"
+                "sensor_data TEXT NOT NULL,"
                 "created_at DATETIME DEFAULT (DATETIME('now', 'localtime')));";
 
     // SQL 명령을 실행
@@ -145,11 +150,10 @@ int main()
 
     printf("Subscribed to topic: %s\n", TOPIC);
 
-    for (;;) {
-        usleep(1000000);  // Sleep for 1 second
+    for (;;)
+    {
+        usleep(1000000); // Sleep for 1 second
     }
-
-
 
     // 클라이언트의 연결 끊기 (client, 제한시간)
     // 클라이언트는 서버에서 연결을 끊고 콜백 함수에서 작성 중인 메시지가 완료되기를 기다림
@@ -159,6 +163,6 @@ int main()
     MQTTClient_destroy(&client);
 
     // 데이터베이스 연결 닫기
-    sqlite3_close(db);
+    // sqlite3_close(db);
     return 0;
 }
