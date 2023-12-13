@@ -1,5 +1,5 @@
 {
     "port": "/dev/ttyACM0",
     "board": "arduino:renesas_uno:unor4wifi",
-    "sketch": "Arduino/test/distance/distance.ino"
+    "sketch": "Network_LAC/pub/pub.ino"
 }
