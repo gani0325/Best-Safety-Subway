@@ -1,6 +1,7 @@
 #include "WiFiS3.h"
 #include <Ethernet.h>
 #include <PubSubClient.h>
+#include <NewPing.h>
 
 // WiFi and MQTT 셋팅
 #define WLAN_SSID "class924"
@@ -8,11 +9,12 @@
 #define MQTT_SERVER "192.168.0.154"
 #define MQTT_PORT 1883
 
-#define TRIG_1 11 // TRIG 핀 설정 (초음파 보내는 핀)
-#define ECHO_1 10 // ECHO 핀 설정 (초음파 받는 핀)
-
-#define TRIG_2 9 // TRIG 핀 설정 (초음파 보내는 핀)
-#define ECHO_2 8 // ECHO 핀 설정 (초음파 받는 핀)
+// sonar(TrigPin, EchoPin, MaxDistance);
+// TrigPin과 EchoPin과 최대제한거리(MaxDistance)의 값을 선언
+NewPing sonar[2] = { 
+  NewPing(9, 8, 50), 
+  NewPing(11, 10, 50), 
+};
 
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = WLAN_SSID; // your network SSID (name)
@@ -25,18 +27,10 @@ PubSubClient mqtt(ethClient);
 int status = WL_IDLE_STATUS;
 WiFiServer server(80);
 
-long duration,sensor1val, sensor2val;
-int distance;
-
 void setup()
 {
   Serial.begin(9600);
   delay(10);
-
-  pinMode(TRIG_1, OUTPUT);
-  pinMode(ECHO_1, INPUT);
-  pinMode(TRIG_2, OUTPUT);
-  pinMode(ECHO_2, INPUT);
 
   connectWiFi();
   // check for the WiFi module:
@@ -75,18 +69,20 @@ void setup()
 
 void loop()
 {
-  // 물체에 반사되어돌아온 초음파의 시간을 변수에 저장합니다.
-  driveSensor(TRIG_1, ECHO_1);
-  sensor1val = distance;
-  driveSensor(TRIG_2, ECHO_2);
-  sensor2val = distance;
-
-  Serial.print("sensor1 = ");
+  long sensor1val, sensor2val;
+  sensor1val = sonar[0].ping_cm();
+  sensor2val = sonar[1].ping_cm();
+  
+  // 물체에 반사되어돌아온 초음파의 시간을 변수에 저장합니다.     
+  Serial.print("A Ping : ");
+  // sonar.ping_cm() : 센서 거리를 'cm'로 계산된 값을 출력
   Serial.print(sensor1val);
-  Serial.print(" cm");
-  Serial.print("     sensor2 = ");
+  Serial.println("cm");
+  
+  delay(50);          
+  Serial.print("B Ping : ");
   Serial.print(sensor2val);
-  Serial.println(" cm");  
+  Serial.println("cm");
 
   char buffer1[15];
   char buffer2[15];
@@ -111,19 +107,6 @@ void loop()
 
   // 대기를 주기 위한 딜레이
   delay(3000);
-}
-
-void driveSensor(int trigPin,int echoPin){
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-
-  // 34000*초음파가 물체로 부터 반사되어 돌아오는시간 /1000000 / 2(왕복값이아니라 편도값이기때문에 나누기2를 해줍니다.)
-  // 초음파센서의 거리값이 위 계산값과 동일하게 Cm로 환산되는 계산공식 입니다. 수식이 간단해지도록 적용했습니다.
-  distance = duration * 17 / 1000;
 }
 
 void connectWiFi()
