@@ -72,10 +72,9 @@ void loop() {
     MQ135.setA(110.47);
     MQ135.setB(-2.862);
     float CO2 = MQ135.readSensor();
+    
     Serial.print("CO2= ");
-
     Serial.print(CO2);
-
     Serial.println(" ppm");
 
     mqtt.publish("sensor/mq135", String(CO2).c_str());
