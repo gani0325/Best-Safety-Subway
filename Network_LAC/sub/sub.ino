@@ -1,55 +1,78 @@
-//sub.ino
 #include "WiFiS3.h"
 #include <PubSubClient.h>
-// LCD를 사용하기 위해 라이브러리를 추가합니다.
-#include <LiquidCrystal_I2C.h>
-#include <Wire.h>
+#include <NewPing.h>
 
+// WiFi and MQTT 셋팅
 #define WLAN_SSID "class924"
 #define WLAN_PASS "kosta90009"
-#define MQTT_SERVER "192.168.0.51"
+#define MQTT_SERVER "192.168.0.154"
 #define MQTT_PORT 1883
-#define MQTT_USERNAME "your_mqtt_username"
-#define MQTT_KEY "your_mqtt_password"
 
+// sonar(TrigPin, EchoPin, MaxDistance);
+// TrigPin과 EchoPin과 최대제한거리(MaxDistance)의 값을 선언
+NewPing sonar[2] = { 
+  NewPing(9, 8, 50), 
+  NewPing(11, 10, 50), 
+};
 
-#define LCD_ADDRESS 0x27
-#define LCD_COLUMNS 16
-#define LCD_ROWS 2
-// 16x2 LCD객체를 생성합니다. 이때 확인한 I2C의 주소값을 넣어줍니다.
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = WLAN_SSID; // your network SSID (name)
+char pass[] = WLAN_PASS; // your network password (use for WPA, or use as key for WEP)
+int keyIndex = 0;
 
 WiFiClient ethClient;
 PubSubClient mqtt(ethClient);
-void callback(char* topic, byte* payload, unsigned int length);
+
+int status = WL_IDLE_STATUS;
+WiFiServer server(80);
 
 void setup() {
-  Serial.begin(9600);
-  delay(10);
+    Serial.begin(9600);
+    
+    // button
+    pinMode(6,INPUT);
+    pinMode(7,INPUT);
 
-  connectWiFi();
-
-  mqtt.setServer(MQTT_SERVER, MQTT_PORT);
-  connectMQTT();
-  delay(2000);
-  mqtt.setCallback(callback);
-  //Display 초기화
-  // lcd.begin(LCD_COLUMNS, LCD_ROWS);
-      lcd.init();
-    lcd.backlight();
+    delay(1000); // prevents usb driver crash on startup, do not omit this
+    
+    connectWiFi();
+    delay(5000);
+    // MQTT broker
+    mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+    connectMQTT();
 }
 
 void loop() {
+    // UltraSonic
+    long sensor1val, sensor2val;
+    sensor1val = sonar[0].ping_cm();
+    sensor2val = sonar[1].ping_cm();
+    
+    char buffer1[15];
+    char buffer2[15];
+    char str[] = "cm";
+    ltoa(sensor1val, buffer1, 10);
+    strcat(buffer1, str);
+    ltoa(sensor2val, buffer2, 10);
+    strcat(buffer2, str);
+    
+    // button
+    int push1=digitalRead(6);  
+    int push2=digitalRead(7);
 
-  if (!mqtt.connected()) {
-    connectMQTT();
-  }
+    Serial.println("============================");
+    Serial.println(buffer1);
+    Serial.println(buffer2);
+    Serial.println(push1);
+    Serial.println(push2);
 
-
-  mqtt.loop();
-
-  delay(1000);
+    mqtt.publish("sensor/ultrasonic_1", String(buffer1).c_str());
+    mqtt.publish("sensor/ultrasonic_2", String(buffer2).c_str());
+    mqtt.publish("sensor/button_1", String(push1).c_str());
+    mqtt.publish("sensor/button_2", String(push2).c_str());
+    delay(4000);
 }
+
 
 void connectWiFi() {
   Serial.println("Connecting to WiFi");
@@ -66,10 +89,8 @@ void connectWiFi() {
 void connectMQTT() {
   Serial.println("Connecting to MQTT");
   while (!mqtt.connected()) {
-    if (mqtt.connect("LCDClient")) {
+    if (mqtt.connect("MQ135Client")) {
       Serial.println("Connected to MQTT");
-
-      mqtt.subscribe("sensor/mq135");
     } else {
       Serial.print("Failed to connect to MQTT, rc=");
       Serial.print(mqtt.state());
@@ -77,20 +98,4 @@ void connectMQTT() {
       delay(5000);
     }
   }
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-
-  String message;
-  for (int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  // 출력 확인
-  Serial.print(message);
-  
-  lcd.setCursor(0, 0);
-  lcd.print("Distance: ");
-  lcd.print(message);
-  delay(2000);
-  lcd.clear();
 }
