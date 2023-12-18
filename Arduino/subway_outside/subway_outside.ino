@@ -27,9 +27,9 @@ NewPing sonar[2] = {
 };
 
 WiFiClient ethClient;
-PubSubClient mqtt(ethClient);
+PubSubClient mqtt_SUB(ethClient);
+PubSubClient mqtt_PUB(ethClient);
 
-void callback_PUB(char* topic, byte* payload, unsigned int length);
 void callback_SUB(char* topic, byte* payload, unsigned int length);
 
 void setup() {
@@ -51,21 +51,21 @@ void setup() {
   delay(5000);
 
   // MQTT broker
-  mqtt.setServer(MQTT_SERVER, MQTT_PORT);
-  connectMQTT_SUB();
-  mqtt.setCallback(callback_SUB);
-  
-  connectMQTT_PUB();
-  mqtt.setCallback(callback_PUB);
+  mqtt_SUB.setServer(MQTT_SERVER, MQTT_PORT);
+  mqtt_PUB.setServer(MQTT_SERVER, MQTT_PORT);
+  connectMQTT();
+  mqtt_SUB.setCallback(callback_SUB);
 }
 
 void loop() {
-  if (!mqtt.connected()) {
-    connectMQTT_SUB();
-    connectMQTT_PUB();
+  if (!mqtt_SUB.connected()) {
+    connectMQTT();
+  } else if (!mqtt_PUB.connected()) {
+    connectMQTT();
   }
 
-  mqtt.loop();
+  mqtt_SUB.loop();
+  mqtt_PUB.loop();
   delay(1000);
 }
 
@@ -81,35 +81,31 @@ void connectWiFi() {
   Serial.println("Connected to WiFi");
 }
 
-void connectMQTT_SUB() {
+void connectMQTT() {
   Serial.println("Connecting to MQTT");
 
-  while (!mqtt.connected()) {
-    if (mqtt.connect("MQ135_Publish")) {
-      Serial.println("Connected to MQTT");
-      mqtt.subscribe("sensor/mq135/#");
+  while (!mqtt_SUB.connected()) {
+    if (mqtt_SUB.connect("MQ135_Subscribe")) {
+      Serial.println("Connected to MQTT pub");
+      mqtt_SUB.subscribe("sensor/mq135/#");
     } else {
       Serial.print("Failed to connect to MQTT, rc=");
-      Serial.print(mqtt.state());
+      Serial.print(mqtt_SUB.state());
       Serial.println(" Retrying in 5 seconds...");
       delay(5000);
     }
   }
-}
-
-void connectMQTT_PUB()
-{
-  Serial.println("Connecting to MQTT");
-  while (!mqtt.connected())
+  
+  while (!mqtt_PUB.connected())
   {
-    if (mqtt.connect("Door_Button_Subscribe"))
+    if (mqtt_PUB.connect("Door_Button_Publish"))
     {
-      Serial.println("Connected to MQTT");
+      Serial.println("Connected to MQTT sub");
     }
     else
     {
       Serial.print("Failed to connect to MQTT, rc=");
-      Serial.print(mqtt.state());
+      Serial.print(mqtt_PUB.state());
       Serial.println(" Retrying in 5 seconds...");
       delay(5000);
     }
@@ -140,11 +136,7 @@ void callback_SUB(char* topic, byte* payload, unsigned int length) {
   lcd.setCursor(0, 1);
   lcd.print("Co2: ");
   lcd.print(message);
-  delay(2000);
-  lcd.clear();
-}
 
-void callback_PUB(char* topic, byte* payload, unsigned int length) {
   // --------------------Door_Button_PUB--------------------
   long sensor1val, sensor2val;
   sensor1val = sonar[0].ping_cm();
@@ -189,10 +181,11 @@ void callback_PUB(char* topic, byte* payload, unsigned int length) {
   delay(1000);
 
   // Publish ultrasonic 센서 값 MQTT 토픽 설정
-  mqtt.publish("sensor/ultrasonic_1", buffer1);
-  mqtt.publish("sensor/ultrasonic_2", buffer2);
+  mqtt_PUB.publish("sensor/ultrasonic_1", buffer1);
+  mqtt_PUB.publish("sensor/ultrasonic_2", buffer2);
   // Publish button 센서 값 MQTT 토픽 설정
-  mqtt.publish("sensor/button_1", String(push1).c_str());
-  mqtt.publish("sensor/button_2", String(push2).c_str());
-  delay(2000);
+  mqtt_PUB.publish("sensor/button_1", String(push1).c_str());
+  mqtt_PUB.publish("sensor/button_2", String(push2).c_str());
+
+  lcd.clear();
 }
