@@ -21,171 +21,229 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // sonar(TrigPin, EchoPin, MaxDistance);
 // TrigPin과 EchoPin과 최대제한거리(MaxDistance)의 값을 선언
-NewPing sonar[2] = { 
-  NewPing(9, 8, 50), 
-  NewPing(11, 10, 50), 
+NewPing sonar[2] = {
+    NewPing(9, 8, 50),
+    NewPing(11, 10, 50),
 };
 
+// LED
+int RED = 3;
+int YELLOW = 4;
+int GREEN = 5;
+
 WiFiClient ethClient;
-PubSubClient mqtt_SUB(ethClient);
-PubSubClient mqtt_PUB(ethClient);
+PubSubClient mqtt(ethClient);
 
 void callback_SUB(char* topic, byte* payload, unsigned int length);
+void Output(String message, unsigned int messageCounter, unsigned int num);
 
-void setup() {
-  Serial.begin(9600);
+void setup()
+{
+    Serial.begin(9600);
 
-  // LCD
-  lcd.init();
-  lcd.clear();
-  lcd.backlight();
+    // LCD
+    lcd.init();
+    lcd.clear();
+    lcd.backlight();
 
-  // button
-  pinMode(6,INPUT);
-  pinMode(7,INPUT);
+    // button
+    pinMode(6, INPUT);
+    pinMode(7, INPUT);
 
-  delay(1000);
-  
-  // WiFi
-  connectWiFi();
-  delay(5000);
+    // LED
+    pinMode(RED, OUTPUT);
+    pinMode(YELLOW, OUTPUT);
+    pinMode(GREEN, OUTPUT);
 
-  // MQTT broker
-  mqtt_SUB.setServer(MQTT_SERVER, MQTT_PORT);
-  mqtt_PUB.setServer(MQTT_SERVER, MQTT_PORT);
-  connectMQTT();
-  mqtt_SUB.setCallback(callback_SUB);
-}
-
-void loop() {
-  if (!mqtt_SUB.connected()) {
-    connectMQTT();
-  } else if (!mqtt_PUB.connected()) {
-    connectMQTT();
-  }
-
-  mqtt_SUB.loop();
-  mqtt_PUB.loop();
-  delay(1000);
-}
-
-void connectWiFi() {
-  Serial.println("Connecting to WiFi");
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
-
-  while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
 
-  Serial.println("Connected to WiFi");
+    // WiFi
+    connectWiFi();
+    delay(5000);
+
+    // MQTT broker
+    mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+    connectMQTT();
+    mqtt.setCallback(callback_SUB);
 }
 
-void connectMQTT() {
-  Serial.println("Connecting to MQTT");
-
-  while (!mqtt_SUB.connected()) {
-    if (mqtt_SUB.connect("MQ135_Subscribe")) {
-      Serial.println("Connected to MQTT pub");
-      mqtt_SUB.subscribe("sensor/mq135/#");
-    } else {
-      Serial.print("Failed to connect to MQTT, rc=");
-      Serial.print(mqtt_SUB.state());
-      Serial.println(" Retrying in 5 seconds...");
-      delay(5000);
-    }
-  }
-  
-  while (!mqtt_PUB.connected())
-  {
-    if (mqtt_PUB.connect("Door_Button_Publish"))
+void loop()
+{
+    if (!mqtt.connected())
     {
-      Serial.println("Connected to MQTT sub");
+        connectMQTT();
+    }
+    mqtt.loop();
+    delay(1000);
+}
+
+void connectWiFi()
+{
+    Serial.println("Connecting to WiFi");
+    WiFi.begin(WLAN_SSID, WLAN_PASS);
+
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(1000);
+        Serial.println("Connecting to WiFi...");
+    }
+
+    Serial.println("Connected to WiFi");
+}
+
+void connectMQTT()
+{
+    Serial.println("Connecting to MQTT");
+
+    while (!mqtt.connected())
+    {
+        if (mqtt.connect("MQ135_Publish"))
+        {
+            Serial.println("Connected to MQTT");
+            mqtt.subscribe("sensor/mq135/#");
+        }
+        else
+        {
+            Serial.print("Failed to connect to MQTT, rc=");
+            Serial.print(mqtt.state());
+            Serial.println(" Retrying in 5 seconds...");
+            delay(5000);
+        }
+    }
+}
+
+int cnt = 0;
+void callback_SUB(char *topic, byte *payload, unsigned int length)
+{
+    if (cnt == 3)
+    {
+      callback_PUB();
+      cnt = 0;
     }
     else
     {
-      Serial.print("Failed to connect to MQTT, rc=");
-      Serial.print(mqtt_PUB.state());
-      Serial.println(" Retrying in 5 seconds...");
-      delay(5000);
+        // --------------------MQ135_SUB--------------------
+        String message;
+
+        for (int i = 0; i < length; i++)
+        {
+            message += (char)payload[i];
+        }
+        Serial.println(message);
+
+        // Counter to keep track of received messages
+        int messageCounter, num1, num2, num3;
+        if ((strcmp(topic, "sensor/mq135/_1") == 0) and (cnt == 0))
+        {
+            messageCounter = 1;
+            num1 = atof(message.c_str());
+            Output(message, messageCounter, num1);
+            cnt += 1;
+        }
+        else if ((strcmp(topic, "sensor/mq135/_2") == 0) and (cnt == 1))
+        {
+            messageCounter = 2;
+            num2 = atof(message.c_str());
+            Output(message, messageCounter, num2);
+            cnt += 1;
+        }
+        else if ((strcmp(topic, "sensor/mq135/_3") == 0) and (cnt == 2))
+        {
+            messageCounter = 3;
+            num3 = atof(message.c_str());
+            Output(message, messageCounter, num3);
+            cnt += 1;
+        } else {
+          Serial.println("One more time");
+        }
+        Serial.println(cnt);
     }
-  }
 }
 
-void callback_SUB(char* topic, byte* payload, unsigned int length) {
-  // --------------------MQ135_SUB--------------------
-  String message;
-  for (int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  Serial.println(message);
-  
-  // Counter to keep track of received messages
-  int messageCounter;
-  if (strcmp(topic, "sensor/mq135/_1") == 0) {
-    messageCounter = 1; 
-  } else if (strcmp(topic, "sensor/mq135/_2") == 0) {
-    messageCounter = 2; 
-  } else if (strcmp(topic, "sensor/mq135/_3") == 0) {
-    messageCounter = 3; 
-  }
-  lcd.setCursor(0, 0);
-  lcd.print("Station: ");
-  lcd.print(messageCounter);
+void Output(String message, unsigned int messageCounter, unsigned int num) {
+    int num1, num2, num3;
 
-  lcd.setCursor(0, 1);
-  lcd.print("Co2: ");
-  lcd.print(message);
+    if (messageCounter == 1) {
+      num1 = num;
+    } else if (messageCounter == 2) {
+      num2 = num;
+    } else if (messageCounter == 3) {
+      num3 = num;
+    }
 
-  // --------------------Door_Button_PUB--------------------
-  long sensor1val, sensor2val;
-  sensor1val = sonar[0].ping_cm();
-  sensor2val = sonar[1].ping_cm();
-  
-  // 물체에 반사되어돌아온 초음파의 시간을 변수에 저장합니다.     
-  Serial.print("A Ping : ");
-  // sonar.ping_cm() : 센서 거리를 'cm'로 계산된 값을 출력
-  Serial.print(sensor1val);
-  Serial.println("cm");
-  
-  delay(50);          
-  Serial.print("B Ping : ");
-  Serial.print(sensor2val);
-  Serial.println("cm");
+    lcd.setCursor(0, 0);
+    lcd.print("Station: ");
+    lcd.print(messageCounter);
 
-  char buffer1[15];
-  char buffer2[15];
-  char str[] = "cm";
+    lcd.setCursor(0, 1);
+    lcd.print("Co2: ");
+    lcd.print(message);
 
-  ltoa(sensor1val, buffer1, 10);
-  ltoa(sensor2val, buffer2, 10);
-  strcat(buffer1, str);
-  strcat(buffer2, str);
+    // led
+    if ((num1 > 20) || (num2 > 25) || (num3 > 18))
+    {
+        digitalWrite(RED, HIGH);
+        digitalWrite(YELLOW, LOW);
+        digitalWrite(GREEN, LOW);
+    }
+    else if ((num1 > 18) or (num2 > 23) or (num3 > 16))
+    {
+        digitalWrite(RED, LOW);
+        digitalWrite(YELLOW, HIGH);
+        digitalWrite(GREEN, LOW);
+    }
+    else
+    {
+        digitalWrite(RED, LOW);
+        digitalWrite(YELLOW, LOW);
+        digitalWrite(GREEN, HIGH);
+    }
+    delay(2000);
+    lcd.clear();
+}
 
-  // 측정된 물체로부터 거리값(cm값)을 보여줍니다.
-  Serial.println("------------------------"); 
-  Serial.println(buffer1); 
-  Serial.println(buffer2);
-  Serial.println("------------------------"); 
+void callback_PUB()
+{
+    // --------------------Door_Button_PUB--------------------
+    long sensor1val, sensor2val;
+    sensor1val = sonar[0].ping_cm();
+    sensor2val = sonar[1].ping_cm();
 
-  delay(1000); // 1초마다 측정값을 보여줍니다.
+    // 물체에 반사되어돌아온 초음파의 시간을 변수에 저장합니다.
+    Serial.print("A Ping : ");
+    // sonar.ping_cm() : 센서 거리를 'cm'로 계산된 값을 출력
+    Serial.print(sensor1val);
+    Serial.println("cm");
 
-  // button
-  int push1=digitalRead(6);
-  Serial.print("push1 = ");
-  Serial.println(push1);
-  
-  int push2=digitalRead(7);
-  Serial.print("push2 = ");
-  Serial.println(push2);
-  delay(1000);
+    Serial.print("B Ping : ");
+    Serial.print(sensor2val);
+    Serial.println("cm");
 
-  // Publish ultrasonic 센서 값 MQTT 토픽 설정
-  mqtt_PUB.publish("sensor/ultrasonic_1", buffer1);
-  mqtt_PUB.publish("sensor/ultrasonic_2", buffer2);
-  // Publish button 센서 값 MQTT 토픽 설정
-  mqtt_PUB.publish("sensor/button_1", String(push1).c_str());
-  mqtt_PUB.publish("sensor/button_2", String(push2).c_str());
+    char buffer1[15];
+    char buffer2[15];
+    char str[] = "cm";
 
-  lcd.clear();
+    ltoa(sensor1val, buffer1, 10);
+    ltoa(sensor2val, buffer2, 10);
+    strcat(buffer1, str);
+    strcat(buffer2, str);
+    delay(100);
+
+    // button
+    int push1 = digitalRead(6);
+    Serial.print("push1 = ");
+    Serial.println(push1);
+
+    int push2 = digitalRead(7);
+    Serial.print("push2 = ");
+    Serial.println(push2);
+
+    // Publish ultrasonic 센서 값 MQTT 토픽 설정
+    mqtt.publish("sensor/ultrasonic_1", buffer1);
+    mqtt.publish("sensor/ultrasonic_2", buffer2);
+    delay(1000);
+    // Publish button 센서 값 MQTT 토픽 설정
+    mqtt.publish("sensor/button_1", String(push1).c_str());
+    mqtt.publish("sensor/button_2", String(push2).c_str());
+    delay(1000);
 }
