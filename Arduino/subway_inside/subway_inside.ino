@@ -68,17 +68,20 @@ static void taskMQ135_1(void* pvParameters) {
         lcd.print("Co2: ");
         lcd.print(CO2_1);
         mqtt.publish("sensor/mq135/_1", String(CO2_1).c_str());
-
+				
+				//딜레이
         vTaskDelay(pdMS_TO_TICKS(3000));
+				//pdMS_TO_TICKS()를 정확히 밀리초 만큼 딜레이를 주기 위한 함수.(상대시간)
         lcd.clear();
     }
 }
 
 static void taskMQ135_2(void* pvParameters) {
+		// _PPM = a*ratio^b (PPM 농도와 상수 값을 계산하기 위한 수학 모델 설정)
     MQ135_2.setRegressionMethod(1);
     MQ135_2.init();
-    MQ135_2.setRL(1);
-    MQ135_2.setR0(3.12);
+    MQ135_2.setRL(1); // RL 값이 1K
+    MQ135_2.setR0(3.12); // 캘리브레이션하여 이 값을 구함 : MQ135.setR0(calcR0/10);
     
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = 4;
@@ -86,11 +89,14 @@ static void taskMQ135_2(void* pvParameters) {
 
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, xFrequency );
+        // 데이터를 업데이트하면 arduino가 아날로그 핀의 전압을 읽음
         MQ135_2.update();
+		    // CO2 농도를 얻기 위해 ecuation 값 구성
         MQ135_2.setA(110.47);
         MQ135_2.setB(-2.862);
+        // 설정된 모델과 a 및 b 값을 사용하여 PPM 농도를 읽음
         float CO2_2 = MQ135_2.readSensor();
-
+				
         // lcd 출력
         lcd.setCursor(0, 0);
         lcd.print("Station: 2");
@@ -100,15 +106,19 @@ static void taskMQ135_2(void* pvParameters) {
         lcd.print(CO2_2);
         mqtt.publish("sensor/mq135/_2", String(CO2_2).c_str());
 
+				//딜레이
         vTaskDelay(pdMS_TO_TICKS(5000));
-        lcd.clear();
+        //pdMS_TO_TICKS()를 정확히 밀리초 만큼 딜레이를 주기 위한 함수.(상대시간)
+
+				lcd.clear();
     }
 }
 static void taskMQ135_3(void* pvParameters) {
+		 // _PPM = a*ratio^b (PPM 농도와 상수 값을 계산하기 위한 수학 모델 설정)
     MQ135_3.setRegressionMethod(1);
     MQ135_3.init();
-    MQ135_3.setRL(1);
-    MQ135_3.setR0(3.12);
+    MQ135_3.setRL(1); // RL 값이 1K
+    MQ135_3.setR0(3.12);  // 캘리브레이션하여 이 값을 구함 : MQ135.setR0(calcR0/10);
 
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = 7;
@@ -116,9 +126,13 @@ static void taskMQ135_3(void* pvParameters) {
 
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, xFrequency );
+				// 데이터를 업데이트하면 arduino가 아날로그 핀의 전압을 읽음
+
         MQ135_3.update();
+		    // CO2 농도를 얻기 위해 ecuation 값 구성
         MQ135_3.setA(110.47);
         MQ135_3.setB(-2.862);
+        // 설정된 모델과 a 및 b 값을 사용하여 PPM 농도를 읽음
         float CO2_3 = MQ135_3.readSensor();
 
         // lcd 출력
@@ -129,8 +143,11 @@ static void taskMQ135_3(void* pvParameters) {
         lcd.print("Co2: ");
         lcd.print(CO2_3);       
         mqtt.publish("sensor/mq135/_3", String(CO2_3).c_str());
-
+				
+				//딜레이
         vTaskDelay(pdMS_TO_TICKS(5000));
+        //pdMS_TO_TICKS()를 정확히 밀리초 만큼 딜레이를 주기 위한 함수.(상대시간)
+
         lcd.clear();
     }
     vTaskDelete(NULL);
@@ -153,11 +170,12 @@ void setup() {
   mqtt.setServer(MQTT_SERVER, MQTT_PORT);
   connectMQTT();
 
-  
+  // taskMQ135_1,2,3 별로 태스크를 만들고 태스크 리스트에 추가  tskIDLE_PRIORITY  우선순위 선정
   xTaskCreate(taskMQ135_1,"taskMQ135_1",256, NULL, tskIDLE_PRIORITY + 3, &Handle_aTask);
   xTaskCreate(taskMQ135_2,"taskMQ135_2",256, NULL, tskIDLE_PRIORITY + 2, &Handle_bTask);
   xTaskCreate(taskMQ135_3, "taskMQ135_3", 256, NULL, tskIDLE_PRIORITY + 1, &Handle_cTask);
-
+	
+	// 태스크의 제어권을 부여해줌
   vTaskStartScheduler();
 }
 
