@@ -29,13 +29,12 @@ NewPing sonar[2] = {
 // LED
 int RED = 3;
 int YELLOW = 4;
-int GREEN = 5;
+int BLUE = 5;
 
 WiFiClient ethClient;
 PubSubClient mqtt(ethClient);
 
-void callback_SUB(char* topic, byte* payload, unsigned int length);
-void Output(String message, unsigned int messageCounter, unsigned int num);
+void callback_SUB(char *topic, byte *payload, unsigned int length);
 
 void setup()
 {
@@ -53,7 +52,7 @@ void setup()
     // LED
     pinMode(RED, OUTPUT);
     pinMode(YELLOW, OUTPUT);
-    pinMode(GREEN, OUTPUT);
+    pinMode(BLUE, OUTPUT);
 
     delay(1000);
 
@@ -73,6 +72,8 @@ void loop()
     {
         connectMQTT();
     }
+    callback_PUB();
+
     mqtt.loop();
     delay(1000);
 }
@@ -112,16 +113,15 @@ void connectMQTT()
     }
 }
 
-int cnt = 0;
-void callback_SUB(char *topic, byte *payload, unsigned int length)
+int cnt;
+= 0 void callback_SUB(char *topic, byte *payload, unsigned int length)
 {
     if (cnt == 3)
     {
-      callback_PUB();
-      cnt = 0;
     }
     else
     {
+
         // --------------------MQ135_SUB--------------------
         String message;
 
@@ -133,73 +133,52 @@ void callback_SUB(char *topic, byte *payload, unsigned int length)
 
         // Counter to keep track of received messages
         int messageCounter, num1, num2, num3;
-        if ((strcmp(topic, "sensor/mq135/_1") == 0) and (cnt == 0))
+        if (strcmp(topic, "sensor/mq135/_1") == 0)
         {
             messageCounter = 1;
-            num1 = atof(message.c_str());
-            Output(message, messageCounter, num1);
-            cnt += 1;
+            // num1 = atof(message);
         }
-        else if ((strcmp(topic, "sensor/mq135/_2") == 0) and (cnt == 1))
+        else if (strcmp(topic, "sensor/mq135/_2") == 0)
         {
             messageCounter = 2;
-            num2 = atof(message.c_str());
-            Output(message, messageCounter, num2);
-            cnt += 1;
+            // num2 = atof(message);
         }
-        else if ((strcmp(topic, "sensor/mq135/_3") == 0) and (cnt == 2))
+        else if (strcmp(topic, "sensor/mq135/_3") == 0)
         {
             messageCounter = 3;
-            num3 = atof(message.c_str());
-            Output(message, messageCounter, num3);
-            cnt += 1;
-        } else {
-          Serial.println("One more time");
+            // num3 = atof(message);
         }
-        Serial.println(cnt);
-    }
-}
 
-void Output(String message, unsigned int messageCounter, unsigned int num) {
-    int num1, num2, num3;
+        lcd.setCursor(0, 0);
+        lcd.print("Station: ");
+        lcd.print(messageCounter);
 
-    if (messageCounter == 1) {
-      num1 = num;
-    } else if (messageCounter == 2) {
-      num2 = num;
-    } else if (messageCounter == 3) {
-      num3 = num;
-    }
+        lcd.setCursor(0, 1);
+        lcd.print("Co2: ");
+        lcd.print(message);
 
-    lcd.setCursor(0, 0);
-    lcd.print("Station: ");
-    lcd.print(messageCounter);
+        // led
+        if ((num1 > 20) || (num2 > 25) || (num3 > 18))
+        {
+            digitalWrite(RED, HIGH);
+            digitalWrite(YELLOW, LOW);
+            digitalWrite(BLUE, LOW);
+        }
+        else if ((num1 > 18) or (num2 > 23) or (num3 > 16))
+        {
+            digitalWrite(RED, LOW);
+            digitalWrite(YELLOW, HIGH);
+            digitalWrite(BLUE, LOW);
+        }
+        else
+        {
+            digitalWrite(RED, LOW);
+            digitalWrite(YELLOW, HIGH);
+            digitalWrite(BLUE, LOW);
+        }
 
-    lcd.setCursor(0, 1);
-    lcd.print("Co2: ");
-    lcd.print(message);
-
-    // led
-    if ((num1 > 20) || (num2 > 25) || (num3 > 18))
-    {
-        digitalWrite(RED, HIGH);
-        digitalWrite(YELLOW, LOW);
-        digitalWrite(GREEN, LOW);
+        lcd.clear();
     }
-    else if ((num1 > 18) or (num2 > 23) or (num3 > 16))
-    {
-        digitalWrite(RED, LOW);
-        digitalWrite(YELLOW, HIGH);
-        digitalWrite(GREEN, LOW);
-    }
-    else
-    {
-        digitalWrite(RED, LOW);
-        digitalWrite(YELLOW, LOW);
-        digitalWrite(GREEN, HIGH);
-    }
-    delay(2000);
-    lcd.clear();
 }
 
 void callback_PUB()
@@ -227,7 +206,6 @@ void callback_PUB()
     ltoa(sensor2val, buffer2, 10);
     strcat(buffer1, str);
     strcat(buffer2, str);
-    delay(100);
 
     // button
     int push1 = digitalRead(6);
@@ -237,13 +215,13 @@ void callback_PUB()
     int push2 = digitalRead(7);
     Serial.print("push2 = ");
     Serial.println(push2);
+    delay(1000);
 
     // Publish ultrasonic 센서 값 MQTT 토픽 설정
     mqtt.publish("sensor/ultrasonic_1", buffer1);
     mqtt.publish("sensor/ultrasonic_2", buffer2);
-    delay(1000);
     // Publish button 센서 값 MQTT 토픽 설정
     mqtt.publish("sensor/button_1", String(push1).c_str());
     mqtt.publish("sensor/button_2", String(push2).c_str());
-    delay(1000);
+    delay(2000);
 }
