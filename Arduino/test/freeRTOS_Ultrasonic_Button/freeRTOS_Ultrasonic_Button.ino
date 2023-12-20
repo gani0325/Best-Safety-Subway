@@ -1,5 +1,6 @@
 #include "WiFiS3.h"
 #include <PubSubClient.h>
+#include <Arduino_FreeRTOS.h>
 #include <NewPing.h>
 
 // WiFi and MQTT 셋팅
@@ -26,51 +27,132 @@ PubSubClient mqtt(ethClient);
 int status = WL_IDLE_STATUS;
 WiFiServer server(80);
 
-void setup() {
-    Serial.begin(9600);
-    
+TaskHandle_t Handle_aTask;
+TaskHandle_t Handle_bTask;
+TaskHandle_t Handle_cTask;
+
+static void taskUltrasonic_1(void* pvParameters) {
+    while (1) {
+        long sensor1val;
+        sensor1val = sonar[0].ping_cm();
+        
+        char buffer1[15];
+        char str[] = "cm";
+        ltoa(sensor1val, buffer1, 10);
+        strcat(buffer1, str);
+        Serial.println("Thread A: taskUltrasonic_1");
+        Serial.println(buffer1); 
+
+        mqtt.publish("sensor/ultrasonic_1", String(buffer1).c_str());
+
+        vTaskDelay( 500 / portTICK_PERIOD_MS ); 
+        delay(2000);
+    }
+}
+
+static void taskUltrasonic_2(void* pvParameters) {
+    while (1) {
+        long sensor2val;
+        sensor2val = sonar[1].ping_cm();
+        
+        char buffer2[15];
+        char str[] = "cm";
+        ltoa(sensor2val, buffer2, 10);
+        strcat(buffer2, str);
+        Serial.println("Thread B: taskUltrasonic_2");
+        Serial.println(buffer2); 
+
+        mqtt.publish("sensor/ultrasonic_2", String(buffer2).c_str());
+
+        vTaskDelay( 500 / portTICK_PERIOD_MS ); 
+        delay(2000);
+    }
+}   
+
+static void taskButton(void* pvParameters) {
     // button
     pinMode(6,INPUT);
     pinMode(7,INPUT);
+  
+    while (1) {
+        // button
+        int push1=digitalRead(6);  
+        int push2=digitalRead(7);
+
+        Serial.println("Thread C: taskButton");
+        Serial.print("push1 = ");
+        Serial.println(push1);
+        Serial.print("push2 = ");
+        Serial.println(push2);
+
+        mqtt.publish("sensor/button_1", String(push1).c_str());
+        mqtt.publish("sensor/button_2", String(push2).c_str());
+
+        vTaskDelay( 500 / portTICK_PERIOD_MS ); 
+        delay(2000);
+    }
+    vTaskDelete(NULL);
+}
+
+void setup() {
+    Serial.begin(9600);
 
     delay(1000); // prevents usb driver crash on startup, do not omit this
+    while(!Serial);  // Wait for Serial terminal to open port before starting program
     
     connectWiFi();
+    // check for the WiFi module:
+    if (WiFi.status() == WL_NO_MODULE)
+    {
+      Serial.println("Communication with WiFi module failed!");
+      // don't continue
+      while (true)
+        ;
+    }
+
+    // WiFi.firmwareVersion() : 모듈에서 실행 중인 펌웨어 버전을 문자열로 반환
+    String fv = WiFi.firmwareVersion();
+    if (fv < WIFI_FIRMWARE_LATEST_VERSION)
+    {
+      Serial.println("Please upgrade the firmware");
+    }
+
+    // attempt to connect to WiFi network:
+    while (status != WL_CONNECTED)
+    {
+      Serial.print("Attempting to connect to Network named: ");
+      Serial.println(ssid); // print the network name (SSID);
+
+      // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+      status = WiFi.begin(ssid, pass);
+      // wait 10 seconds for connection:
+      delay(5000);
+    }
+    printWifiStatus();
     delay(5000);
+
     // MQTT broker
     mqtt.setServer(MQTT_SERVER, MQTT_PORT);
     connectMQTT();
+
+    Serial.println("");
+    Serial.println("******************************");
+    Serial.println("        Program start         ");
+    Serial.println("******************************");
+
+    // Create the threads that will be managed by the rtos
+    // Sets the stack size and priority of each task
+    // Also initializes a handler pointer to each task, which are important to communicate with and retrieve info from tasks
+    xTaskCreate(taskUltrasonic_1,"taskUltrasonic_1",256, NULL, tskIDLE_PRIORITY +3, &Handle_aTask);
+    xTaskCreate(taskUltrasonic_2,"taskUltrasonic_2",256, NULL, tskIDLE_PRIORITY + 2, &Handle_bTask);
+    xTaskCreate(taskButton,"taskButton",256, NULL, tskIDLE_PRIORITY + 1, &Handle_cTask);
+
+    // Start the RTOS, this function will never return and will schedule the tasks.
+    vTaskStartScheduler();
 }
 
 void loop() {
-    // UltraSonic
-    long sensor1val, sensor2val;
-    sensor1val = sonar[0].ping_cm();
-    sensor2val = sonar[1].ping_cm();
-    
-    char buffer1[15];
-    char buffer2[15];
-    char str[] = "cm";
-    ltoa(sensor1val, buffer1, 10);
-    strcat(buffer1, str);
-    ltoa(sensor2val, buffer2, 10);
-    strcat(buffer2, str);
-    
-    // button
-    int push1=digitalRead(6);  
-    int push2=digitalRead(7);
-
-    Serial.println("============================");
-    Serial.println(buffer1);
-    Serial.println(buffer2);
-    Serial.println(push1);
-    Serial.println(push2);
-
-    mqtt.publish("sensor/ultrasonic_1", String(buffer1).c_str());
-    mqtt.publish("sensor/ultrasonic_2", String(buffer2).c_str());
-    mqtt.publish("sensor/button_1", String(push1).c_str());
-    mqtt.publish("sensor/button_2", String(push2).c_str());
-    delay(4000);
+    // NOTHING
 }
 
 
@@ -98,4 +180,21 @@ void connectMQTT() {
       delay(5000);
     }
   }
+}
+
+void printWifiStatus() {
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP Address: ");
+  Serial.println(ip);
+
+  long rssi = WiFi.RSSI();
+  Serial.print("Signal strength (RSSI):");
+  Serial.print(rssi);
+  Serial.println(" dBm");
+
+  Serial.print("To see this page in action, open a browser to http://");
+  Serial.println(ip);
 }
