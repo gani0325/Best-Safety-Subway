@@ -41,6 +41,8 @@ TaskHandle_t Handle_bTask;
 TaskHandle_t Handle_cTask;
 
 static void taskMQ135_1(void* pvParameters) {
+         vTaskDelay(pdMS_TO_TICKS(1));
+
     // _PPM = a*ratio^b (PPM 농도와 상수 값을 계산하기 위한 수학 모델 설정)
     MQ135_1.setRegressionMethod(1);
     MQ135_1.init();
@@ -70,14 +72,15 @@ static void taskMQ135_1(void* pvParameters) {
         mqtt.publish("sensor/mq135/_1", String(CO2_1).c_str());
 				
 				//딜레이
-        vTaskDelay(pdMS_TO_TICKS(3000));
+        vTaskDelay(pdMS_TO_TICKS(2500));
 				//pdMS_TO_TICKS()를 정확히 밀리초 만큼 딜레이를 주기 위한 함수.(상대시간)
         lcd.clear();
     }
 }
 
 static void taskMQ135_2(void* pvParameters) {
-		// _PPM = a*ratio^b (PPM 농도와 상수 값을 계산하기 위한 수학 모델 설정)
+     vTaskDelay(pdMS_TO_TICKS(200));
+		 // _PPM = a*ratio^b (PPM 농도와 상수 값을 계산하기 위한 수학 모델 설정)
     MQ135_2.setRegressionMethod(1);
     MQ135_2.init();
     MQ135_2.setRL(1); // RL 값이 1K
@@ -107,13 +110,14 @@ static void taskMQ135_2(void* pvParameters) {
         mqtt.publish("sensor/mq135/_2", String(CO2_2).c_str());
 
 				//딜레이
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(6500));
         //pdMS_TO_TICKS()를 정확히 밀리초 만큼 딜레이를 주기 위한 함수.(상대시간)
 
 				lcd.clear();
     }
 }
 static void taskMQ135_3(void* pvParameters) {
+     vTaskDelay(pdMS_TO_TICKS(500));
 		 // _PPM = a*ratio^b (PPM 농도와 상수 값을 계산하기 위한 수학 모델 설정)
     MQ135_3.setRegressionMethod(1);
     MQ135_3.init();
@@ -145,7 +149,7 @@ static void taskMQ135_3(void* pvParameters) {
         mqtt.publish("sensor/mq135/_3", String(CO2_3).c_str());
 				
 				//딜레이
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(8500));
         //pdMS_TO_TICKS()를 정확히 밀리초 만큼 딜레이를 주기 위한 함수.(상대시간)
 
         lcd.clear();
