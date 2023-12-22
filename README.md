@@ -102,6 +102,12 @@
 - [[FreeRTOS] 7. 태스크 관련 API 커널](https://velog.io/@psh4204/FreeRTOS-7.-%ED%83%9C%EC%8A%A4%ED%81%AC-%EA%B4%80%EB%A0%A8-API-%EC%BB%A4%EB%84%90)
 
 
+**🚩 실행방법**
+- Arduino/subway_inside/subway_inside.ino
+- Arduino/subway_outside/subway_outside.ino
+- DB/main.c
+    - gcc -g -o main main.c -lpaho-mqtt3c -lsqlite3
+
 **🚩 DEMO**
 - YOUTUBE -> https://youtu.be/z0vN7ogobQA
 - 🚉 Station
