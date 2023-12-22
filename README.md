@@ -86,7 +86,7 @@
         - 3️⃣ Task는 일회용 task와 주기적 task 2가지 종류
 
 **🚩 사용자 인터페이스**
-
+![image](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2Fcf2rad%2FbtsCwhQs9Uz%2FQmtKogezVezssZPKNdfyB1%2Fimg.png)
 
 **🚩 개발 일정**
 ![image](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FW1lsm%2FbtsCtmyabfL%2FQnsuZoKGBpFjqX1IvDmhg1%2Fimg.png)
